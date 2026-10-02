@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+{% block title %}{{ team.name }} - Scoreboard{% endblock %}
+
+{% block content %}
+<main class="flex-grow p-6 max-w-6xl mx-auto space-y-8">
+    <!-- Header -->
+    <div class="text-center space-y-1">
+        <h1 class="text-2xl font-bold">{{ team.name }} - Scoreboard</h1>
+        <div id="generated-at" class="text-sm text-gray-300"></div>
+        <p class="text-xs text-gray-400">
+            _____________________________________________________________________________________________________________________________________________________________________________________
+        </p>
+    </div>
+
+    <!-- Team summary -->
+    <div class="bg-gray-900 rounded-xl ring-1 ring-gray-800/50 overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="text-gray-100 bg-gray-800/60">
+                <tr>
+                    <th class="py-2 px-4 text-left">Team Name</th>
+                    <th class="py-2 px-4 text-left">Division</th>
+                    <th class="py-2 px-4 text-left">Scored Images</th>
+                    <th class="py-2 px-4 text-left">Elapsed Time</th>
+                    <th class="py-2 px-4 text-left">Current Score</th>
+                </tr>
+            </thead>
+            <tbody id="team-summary" class="text-gray-300"></tbody>
+        </table>
+    </div>
+
+    <!-- Per-image summary (no Last Update, no Warnings) -->
+    <div id="image-table" class="bg-gray-900 rounded-xl ring-1 ring-gray-800/50 overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="text-gray-100 bg-gray-800/60">
+                <tr>
+                    <th class="py-2 px-4 text-left">Team Name</th>
+                    <th class="py-2 px-4 text-left">Image</th>
+                    <th class="py-2 px-4 text-left">Elapsed</th>
+                    <th class="py-2 px-4 text-right">Found</th>
+                    <th class="py-2 px-4 text-right">Missed</th>
+                    <th class="py-2 px-4 text-right">Score</th>
+                </tr>
+            </thead>
+            <tbody id="images-body" class="text-gray-300">
+                <tr>
+                    <td class="py-3 px-4 text-gray-500" colspan="6">Loading…</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- chart -->
+    <div class="bg-gray-900 p-4 rounded-xl ring-1 ring-gray-800/50">
+        <div class="px-2 pb-2 font-semibold text-gray-200">Team {{ team.name }}</div>
+        <canvas id="scoreChart" height="120"></canvas>
+    </div>
+</main>
+
+<!-- Chart.js + adapter -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+
+<script>
+    const teamId = {{ team.id }};
+    let chart;
+
+    // -------- helpers --------
+    const CDT_TZ = 'America/Chicago';
+    const cdtDTF = new Intl.DateTimeFormat('en-US', {
+        timeZone: CDT_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+    const utcDTF = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+    function fmtCDT(x) {
+        const d = (x instanceof Date) ? x : new Date(x);
+        return cdtDTF.format(d).replace(',', '');
+    }
+    function fmtUTC(x) {
+        const d = (x instanceof Date) ? x : new Date(x);
+        return utcDTF.format(d).replace(',', '');
+    }
+    function msToMMSS(ms) {
+        if (!Number.isFinite(ms)) return '—';
+        const s = Math.max(0, Math.round(ms / 1000));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${m}:${r.toString().padStart(2, '0')}`;
+    }
+
+    function toTS(x) {
+        const t = new Date(x).getTime();
+        return Number.isFinite(t) ? t : null;
+    }
+
+    function buildDataset(label, pts) {
+        return {
+            label,
+            data: (pts || [])
+                .map(p => {
+                    const t = toTS(p.t);
+                    const y = Number(p.score);
+                    return (t === null || !Number.isFinite(y)) ? null : { x: t, y };
+                })
+                .filter(Boolean),
+            borderWidth: 2,
+            fill: false,
+            tension: 0.1,
+            // optional: draw through gaps if some points were filtered out
+            spanGaps: true,
+        };
+    }
+
+
+    function computeExtent(seriesByImage) {
+        let minT = null, maxT = null;
+        (seriesByImage || []).forEach(s => {
+            (s.series || []).forEach(p => {
+                const t = new Date(p.t).getTime();
+                if (Number.isFinite(t)) {
+                    if (minT === null || t < minT) minT = t;
+                    if (maxT === null || t > maxT) maxT = t;
+                }
+            });
+        });
+        return [minT, maxT];
+    }
+
+    function buildTeamSummary({ series, series_by_image }) {
+        const tbody = document.getElementById('team-summary');
+
+        const scoredImages = (series_by_image || []).filter(s => (s.series || []).length).length;
+
+        let currentScore = '—';
+        if (series && series.length) {
+            currentScore = series[series.length - 1].score;
+        } else if (series_by_image && series_by_image.length) {
+            const lastScores = series_by_image.map(s => {
+                const pts = s.series || [];
+                return pts.length ? pts[pts.length - 1].score : -Infinity;
+            }).filter(x => Number.isFinite(x));
+            if (lastScores.length) currentScore = Math.max(...lastScores);
+        }
+
+        const [minT, maxT] = computeExtent(series_by_image || []);
+        const elapsed = (minT !== null && maxT !== null) ? msToMMSS(maxT - minT) : '—';
+
+        tbody.innerHTML = `
+      <tr class="border-b border-gray-800">
+        <td class="py-2 px-4">{{ team.name }}</td>
+        <td class="py-2 px-4">{{ team.division if team.division else '—' }}</td>
+        <td class="py-2 px-4">${scoredImages}</td>
+        <td class="py-2 px-4">${elapsed}</td>
+        <td class="py-2 px-4">${currentScore}</td>
+      </tr>`;
+    }
+
+    function buildImageSummary(seriesByImage) {
+        const tbody = document.getElementById('images-body');
+        if (!seriesByImage || !seriesByImage.length) {
+            tbody.innerHTML = `<tr><td class="py-3 px-4 text-gray-500" colspan="6">No image data in range.</td></tr>`;
+            return;
+        }
+
+        const rows = seriesByImage.map(s => {
+            const pts = (s.series || []).slice().sort((a, b) => new Date(a.t) - new Date(b.t));
+            if (!pts.length) return '';
+
+            const first = pts[0];
+            const last = pts[pts.length - 1];
+            const elapsed = msToMMSS(new Date(last.t) - new Date(first.t));
+            const score = Number.isFinite(last.score) ? last.score : '—';
+
+            const Found = Number.isFinite(Number(s.Found)) ? Number(s.Found) : '—';
+            const Missed = Number.isFinite(Number(s.Missed)) ? Number(s.Missed) : '—';
+
+            return `
+      <tr class="border-b border-gray-800">
+        <td class="py-2 px-4">{{ team.name }}</td>
+        <td class="py-2 px-4">${s.name ?? '—'}</td>
+        <td class="py-2 px-4">${elapsed}</td>
+        <td class="py-2 px-4 text-right">${Found}</td>
+        <td class="py-2 px-4 text-right">${Missed}</td>
+        <td class="py-2 px-4 text-right font-mono">${score}</td>
+      </tr>`;
+        }).join('');
+
+        tbody.innerHTML = rows || `<tr><td class="py-3 px-4 text-gray-500" colspan="6">No image data available.</td></tr>`;
+    }
+
+    async function loadSeries() {
+        // Always use per-image mode
+        const params = new URLSearchParams();
+        params.set('group', 'image');
+
+        const url = `/api/teams/${teamId}/image-scores?` + params.toString();
+        const r = await fetch(url, { credentials: 'same-origin' });
+        const js = await r.json();
+
+        // “Generated At” in UTC
+        document.getElementById('generated-at').textContent =
+            `Generated At: ${fmtUTC(new Date())} UTC`;
+
+        // datasets (per-image only)
+        const datasets = (js.series_by_image || []).map(s => buildDataset(s.name, s.series));
+
+        // tables
+        buildTeamSummary(js);
+        buildImageSummary(js.series_by_image || []);
+
+        // extent across all image series
+        const [minT, maxT] = computeExtent(js.series_by_image || []);
+        const xMin = Number.isFinite(minT) ? minT : undefined;
+        const xMax = Number.isFinite(maxT) ? maxT : undefined;
+
+        // chart
+        const ctx = document.getElementById('scoreChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                parsing: false,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { tooltipFormat: 'yyyy-MM-dd HH:mm:ss' },
+                        min: xMin,
+                        max: xMax,
+                        ticks: { callback: (v) => fmtCDT(v) }
+                    },
+                    y: { beginAtZero: true }
+                },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => {
+                                if (!items.length) return '';
+                                return 'Time (CDT): ' + fmtCDT(items[0].parsed.x);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    window.addEventListener('load', loadSeries);
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+<!-- templates/admin/create_announcement.html -->
+{% extends 'base.html' %}
+{% block title %}New Announcement{% endblock %}
+{% block content %}
+<main class="max-w-3xl mx-auto p-6 space-y-4">
+    <h1 class="text-2xl font-bold">➕ New Announcement</h1>
+    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+        <input name="title" placeholder="Title" class="w-full p-2 rounded bg-gray-800 text-white" required>
+        <textarea name="content" placeholder="Write the announcement…" rows="6"
+            class="w-full p-2 rounded bg-gray-800 text-white" required></textarea>
+        <label class="block text-white">Attach file (optional)</label>
+        <input type="file" name="file" class="block">
+        <div class="flex gap-2">
+            <button class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded">Create</button>
+            <a href="{{ url_for('manage_announcements') }}"
+                class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600">Cancel</a>
+        </div>
+    </form>
+</main>
+{% endblock %}

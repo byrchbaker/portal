@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console — {{ vm_name }} ({{ vmid }})</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #16191d; --panel: #1f2429; --line: #2c3339; --hover: #374049;
+    --text: #d7dde3; --muted: #8b98a5; --ok: #57d68c; --warn: #f0b429; --err: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text);
+               font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; }
+
+  #bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+         background: var(--panel); border-bottom: 1px solid var(--line); flex: none; }
+  #bar h1 { font-size: 13px; font-weight: 600; margin: 0 8px 0 2px; white-space: nowrap; }
+  #bar h1 .sub { color: var(--muted); font-weight: 400; }
+  .spacer { flex: 1; }
+
+  button, select {
+    background: #2c3339; color: var(--text); border: 1px solid #3a434b;
+    border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer;
+  }
+  button:hover:not(:disabled), select:hover { background: var(--hover); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.danger { border-color: #5a3233; color: #ffb3b3; }
+  button.danger:hover { background: #4a2628; }
+  button.on { background: #2f4d63; border-color: #3d6a8a; }
+
+  .menu { position: relative; }
+  .menu > .pop {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 30; display: none;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
+    padding: 5px; min-width: 190px; box-shadow: 0 10px 28px rgba(0,0,0,.55);
+  }
+  .menu.open > .pop { display: block; }
+  .pop button { display: block; width: 100%; text-align: left; border: 0;
+                background: transparent; padding: 7px 9px; border-radius: 4px; }
+  .pop button:hover:not(:disabled) { background: var(--hover); }
+  .pop hr { border: 0; border-top: 1px solid var(--line); margin: 5px 2px; }
+  .pop .label { color: var(--muted); font-size: 11px; text-transform: uppercase;
+                letter-spacing: .5px; padding: 6px 9px 3px; }
+
+  #pill { display: inline-flex; align-items: center; gap: 6px; color: var(--muted);
+          padding: 0 8px; white-space: nowrap; }
+  #pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
+                  background: var(--muted); }
+  #pill.ok { color: var(--ok); } #pill.ok::before { background: var(--ok); }
+  #pill.err { color: var(--err); } #pill.err::before { background: var(--err); }
+  #pill.warn { color: var(--warn); } #pill.warn::before { background: var(--warn); }
+
+  #stage { flex: 1; display: flex; min-height: 0; }
+  #screen { flex: 1; background: #000; min-width: 0; }
+
+  #drawer { width: 340px; flex: none; background: var(--panel);
+            border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; display: none; }
+  #drawer.open { display: block; }
+  #drawer h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+               color: var(--muted); margin: 0 0 8px; }
+  #drawer section + section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+  textarea { width: 100%; background: #14181c; color: var(--text); border: 1px solid #3a434b;
+             border-radius: 5px; padding: 8px; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+             resize: vertical; }
+  .row { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+  .note { color: var(--muted); font-size: 11.5px; margin: 7px 0 0; }
+  .note.warn { color: var(--warn); }
+  label.field { display: flex; align-items: center; gap: 8px; margin: 9px 0; }
+  label.field span { flex: 1; color: var(--muted); }
+  input[type=range] { width: 130px; }
+
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+           background: #2c3339; border: 1px solid var(--line); border-radius: 6px;
+           padding: 8px 16px; z-index: 60; display: none; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  #toast.show { display: block; }
+  :fullscreen #bar { opacity: .25; transition: opacity .15s; }
+  :fullscreen #bar:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <h1>{{ vm_name }} <span class="sub">· {{ vmtype }}/{{ vmid }} @ {{ node }}</span></h1>
+
+  {% if power_actions %}
+  <div class="menu" data-menu>
+    <button type="button" data-menu-toggle>Power ▾</button>
+    <div class="pop">
+      <div class="label">Guest power</div>
+      {% for a in power_actions %}
+        <button type="button" class="power {% if a in ['stop','reset'] %}danger{% endif %}"
+                data-action="{{ a }}">
+          {{ {'start':'Start','shutdown':'Shutdown (ACPI)','reboot':'Reboot',
+              'reset':'Hard reset','stop':'Hard stop'}[a] }}
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="menu" data-menu>
+    <button type="button" data-menu-toggle>Keys ▾</button>
+    <div class="pop">
+      <div class="label">Send to guest</div>
+      <button type="button" data-key="ctrlaltdel">Ctrl + Alt + Del</button>
+      <button type="button" data-key="ctrlaltdel-oob">Ctrl + Alt + Del (out-of-band)</button>
+      <hr>
+      <div class="label">Virtual terminals</div>
+      <button type="button" data-combo="ctrl-alt-f1">Ctrl + Alt + F1</button>
+      <button type="button" data-combo="ctrl-alt-f2">Ctrl + Alt + F2</button>
+      <button type="button" data-combo="ctrl-alt-f3">Ctrl + Alt + F3</button>
+      <button type="button" data-combo="ctrl-alt-f7">Ctrl + Alt + F7</button>
+      <hr>
+      <div class="label">Single keys</div>
+      <button type="button" data-single="Escape">Esc</button>
+      <button type="button" data-single="Tab">Tab</button>
+      <button type="button" data-single="F2">F2</button>
+      <button type="button" data-single="F8">F8</button>
+      <button type="button" data-single="F12">F12</button>
+      <button type="button" data-single="Meta">Windows / Super</button>
+    </div>
+  </div>
+
+  <button type="button" id="clipBtn">Clipboard</button>
+  <button type="button" id="shotBtn">Screenshot</button>
+  <button type="button" id="setBtn">Settings</button>
+
+  <span class="spacer"></span>
+
+  <span id="pill">connecting…</span>
+  <button type="button" id="fsBtn">Fullscreen</button>
+  <button type="button" id="reBtn">Reconnect</button>
+</div>
+
+<div id="stage">
+  <div id="screen"></div>
+
+  <aside id="drawer">
+    <section id="clipPane">
+      <h2>Clipboard</h2>
+
+      <div id="clipStatus" class="note"></div>
+
+      <p class="note" style="margin-top:12px">Send to guest</p>
+      <textarea id="outText" rows="5" placeholder="Paste or type here, then send…"></textarea>
+      <div class="row">
+        <button type="button" id="readLocal">Read my clipboard</button>
+        <button type="button" id="sendClip">Send to guest clipboard</button>
+      </div>
+      <div class="row">
+        <button type="button" id="typeIt">Type as keystrokes</button>
+        <button type="button" id="clearOut">Clear</button>
+      </div>
+      <p class="note">“Type as keystrokes” works on any guest — it drives the virtual
+        keyboard character by character. Assumes a US layout in the guest.</p>
+
+      <p class="note" style="margin-top:14px">From guest</p>
+      <textarea id="inText" rows="5" placeholder="Text copied inside the guest lands here…"></textarea>
+      <div class="row">
+        <button type="button" id="copyIn">Copy to my clipboard</button>
+      </div>
+    </section>
+
+    <section id="setPane">
+      <h2>Display</h2>
+      <label class="field"><span>Quality</span>
+        <input type="range" id="quality" min="0" max="9" value="6">
+        <b id="qualityVal">6</b></label>
+      <label class="field"><span>Compression</span>
+        <input type="range" id="compress" min="0" max="9" value="2">
+        <b id="compressVal">2</b></label>
+      <label class="field"><span>Scale to fit</span>
+        <input type="checkbox" id="scaleOpt" checked></label>
+      <label class="field"><span>Resize guest to window</span>
+        <input type="checkbox" id="resizeOpt" checked></label>
+      <label class="field"><span>View only</span>
+        <input type="checkbox" id="viewOnly"></label>
+      <p class="note">Lower quality + higher compression helps on a saturated
+        competition network. View-only is handy for shoulder-surfing a teammate.</p>
+    </section>
+  </aside>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import RFB from '/static/novnc/core/rfb.js';
+
+const VMID           = {{ vmid|tojson }};
+const VMTYPE         = {{ vmtype|tojson }};
+const CLIPBOARD_READY = {{ clipboard_ready|tojson }};
+const SENDKEY_OK     = {{ sendkey_ok|tojson }};
+
+const $ = (id) => document.getElementById(id);
+const screenEl = $('screen');
+const pill = $('pill');
+let rfb = null;
+
+// ---------------------------------------------------------------- helpers
+function setPill(text, cls) { pill.textContent = text; pill.className = cls || ''; }
+
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function api(path, opts) {
+  const res = await fetch(path, Object.assign({
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  }, opts || {}));
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return body;
+}
+
+// ---------------------------------------------------------------- connect
+async function connect() {
+  if (rfb) { try { rfb.disconnect(); } catch (e) {} rfb = null; }
+  setPill('requesting console…');
+
+  let sess;
+  try {
+    // Minted only now: Proxmox kills an unclaimed vncproxy after ~10 seconds.
+    sess = await api(`/api/console/${VMID}/session`, { method: 'POST' });
+  } catch (err) {
+    setPill(`failed: ${err.message}`, 'err');
+    return;
+  }
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  setPill('connecting…');
+
+  rfb = new RFB(screenEl, `${proto}://${location.host}/ws/vnc/${sess.sid}`,
+                { credentials: { password: sess.password } });
+
+  applyDisplaySettings();
+
+  rfb.addEventListener('connect', () => { setPill('connected', 'ok'); refreshStatus(); });
+  rfb.addEventListener('disconnect', (e) =>
+    setPill(e.detail.clean ? 'disconnected' : 'connection lost', 'err'));
+  rfb.addEventListener('securityfailure', (e) =>
+    setPill(`auth failed: ${e.detail.reason || 'unknown'}`, 'err'));
+
+  // Remote -> local clipboard (only fires when the guest has vdagent running)
+  rfb.addEventListener('clipboard', (e) => {
+    $('inText').value = e.detail.text;
+    if (!$('drawer').classList.contains('open')) toast('Guest copied text — see Clipboard');
+  });
+}
+
+// ---------------------------------------------------------------- display
+function applyDisplaySettings() {
+  if (!rfb) return;
+  rfb.qualityLevel     = parseInt($('quality').value, 10);
+  rfb.compressionLevel = parseInt($('compress').value, 10);
+  rfb.scaleViewport    = $('scaleOpt').checked;
+  rfb.clipViewport     = !$('scaleOpt').checked;
+  rfb.resizeSession    = $('resizeOpt').checked;
+  rfb.viewOnly         = $('viewOnly').checked;
+  rfb.background       = '#000';
+  rfb.focusOnClick     = true;
+}
+
+for (const id of ['quality', 'compress']) {
+  $(id).addEventListener('input', () => {
+    $(id + 'Val').textContent = $(id).value;
+    applyDisplaySettings();
+  });
+}
+for (const id of ['scaleOpt', 'resizeOpt', 'viewOnly']) {
+  $(id).addEventListener('change', applyDisplaySettings);
+}
+
+// ---------------------------------------------------------------- clipboard
+// Keysym mapping good enough for everything you'd paste into a console.
+function keysymFor(ch) {
+  if (ch === '\n' || ch === '\r') return 0xFF0D;   // Return
+  if (ch === '\t') return 0xFF09;                  // Tab
+  const c = ch.codePointAt(0);
+  if (c >= 0x20 && c <= 0x7E) return c;            // ASCII printable
+  if (c >= 0xA0 && c <= 0xFF) return c;            // Latin-1
+  return 0x01000000 + c;                           // Unicode keysym
+}
+
+async function typeString(text) {
+  if (!rfb) return;
+  const chars = Array.from(text.replace(/\r\n/g, '\n'));
+  setPill(`typing 0/${chars.length}…`, 'warn');
+  for (let i = 0; i < chars.length; i++) {
+    const ks = keysymFor(chars[i]);
+    rfb.sendKey(ks, null, true);
+    rfb.sendKey(ks, null, false);
+    if (i % 25 === 0) setPill(`typing ${i}/${chars.length}…`, 'warn');
+    await sleep(9);   // give the guest's keyboard buffer room to breathe
+  }
+  setPill('connected', 'ok');
+  toast(`Typed ${chars.length} characters`);
+}
+
+function clipboardStatus() {
+  const el = $('clipStatus');
+  if (CLIPBOARD_READY) {
+    el.className = 'note';
+    el.textContent = 'Guest clipboard channel is enabled on this VM. Copy/paste ' +
+                     'syncs both ways as long as spice-vdagent is running inside.';
+  } else if (VMTYPE === 'lxc') {
+    el.className = 'note warn';
+    el.textContent = 'Containers have no clipboard channel. Use “Type as keystrokes” ' +
+                     'to get text in; copying out is not possible over the console.';
+  } else {
+    el.className = 'note warn';
+    el.innerHTML = 'No clipboard channel on this VM. To enable it: ' +
+      '<code>qm set ' + VMID + ' -vga std,clipboard=vnc</code>, reboot, and install ' +
+      'spice-vdagent in the guest. Until then, use “Type as keystrokes”.';
+  }
+  $('sendClip').disabled = !CLIPBOARD_READY;
+  $('copyIn').disabled = !CLIPBOARD_READY;
+}
+
+$('readLocal').addEventListener('click', async () => {
+  if (!navigator.clipboard || !window.isSecureContext) {
+    toast('Browser blocks clipboard reads over plain HTTP — paste into the box with Ctrl+V');
+    $('outText').focus();
+    return;
+  }
+  try {
+    $('outText').value = await navigator.clipboard.readText();
+  } catch (e) {
+    toast('Clipboard permission denied — paste into the box with Ctrl+V');
+    $('outText').focus();
+  }
+});
+
+$('sendClip').addEventListener('click', () => {
+  if (!rfb) return;
+  rfb.clipboardPasteFrom($('outText').value);
+  toast('Sent to guest clipboard — paste inside the VM');
+});
+
+$('typeIt').addEventListener('click', () => typeString($('outText').value));
+$('clearOut').addEventListener('click', () => { $('outText').value = ''; });
+
+$('copyIn').addEventListener('click', async () => {
+  const text = $('inText').value;
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(text); toast('Copied'); return; } catch (e) {}
+  }
+  $('inText').select();
+  document.execCommand('copy');
+  toast('Copied');
+});
+
+// ---------------------------------------------------------------- keys
+document.querySelectorAll('[data-key="ctrlaltdel"]').forEach(b =>
+  b.addEventListener('click', () => { if (rfb) rfb.sendCtrlAltDel(); }));
+
+document.querySelectorAll('[data-key="ctrlaltdel-oob"]').forEach(b =>
+  b.addEventListener('click', () => sendKeyOOB('ctrl-alt-delete')));
+
+async function sendKeyOOB(key) {
+  if (!SENDKEY_OK) { toast('Not available for containers'); return; }
+  try {
+    await api(`/api/console/${VMID}/sendkey`, {
+      method: 'POST', body: JSON.stringify({ key })
+    });
+    toast(`Sent ${key} via Proxmox`);
+  } catch (e) { toast(`Failed: ${e.message}`); }
+}
+
+// Ctrl+Alt+Fn through noVNC, with an out-of-band fallback.
+const CTRL = 0xFFE3, ALT = 0xFFE9;
+const FKEYS = { f1: 0xFFBE, f2: 0xFFBF, f3: 0xFFC0, f4: 0xFFC1,
+                f5: 0xFFC2, f6: 0xFFC3, f7: 0xFFC4 };
+
+document.querySelectorAll('[data-combo]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!rfb) return;
+    const fn = FKEYS[btn.dataset.combo.split('-').pop()];
+    rfb.sendKey(CTRL, 'ControlLeft', true);
+    rfb.sendKey(ALT, 'AltLeft', true);
+    rfb.sendKey(fn, null, true);
+    rfb.sendKey(fn, null, false);
+    rfb.sendKey(ALT, 'AltLeft', false);
+    rfb.sendKey(CTRL, 'ControlLeft', false);
+    toast(btn.textContent.trim());
+  });
+});
+
+const SINGLES = { Escape: [0xFF1B, 'Escape'], Tab: [0xFF09, 'Tab'],
+                  F2: [0xFFBF, 'F2'], F8: [0xFFC5, 'F8'], F12: [0xFFC9, 'F12'],
+                  Meta: [0xFFEB, 'MetaLeft'] };
+
+document.querySelectorAll('[data-single]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!rfb) return;
+    const [ks, code] = SINGLES[btn.dataset.single];
+    rfb.sendKey(ks, code, true);
+    rfb.sendKey(ks, code, false);
+  });
+});
+
+// ---------------------------------------------------------------- power
+document.querySelectorAll('button.power').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const action = btn.dataset.action;
+    if ((action === 'stop' || action === 'reset') &&
+        !confirm(`${action.toUpperCase()} pulls the virtual power cord — unsaved guest state is lost.\n\nContinue?`)) {
+      return;
+    }
+    btn.disabled = true;
+    try {
+      await api(`/api/console/${VMID}/power`, {
+        method: 'POST', body: JSON.stringify({ action })
+      });
+      toast(`${action} sent`);
+      setTimeout(refreshStatus, 2500);
+      if (action === 'start') setTimeout(connect, 6000);
+    } catch (e) {
+      toast(`Failed: ${e.message}`);
+    } finally {
+      btn.disabled = false;
+      closeMenus();
+    }
+  });
+});
+
+async function refreshStatus() {
+  try {
+    const s = await api(`/api/console/${VMID}/status`);
+    if (s.status && s.status !== 'running') setPill(s.status, 'warn');
+  } catch (e) { /* non-fatal */ }
+}
+setInterval(refreshStatus, 15000);
+
+// ---------------------------------------------------------------- chrome
+function closeMenus() {
+  document.querySelectorAll('[data-menu]').forEach(m => m.classList.remove('open'));
+}
+document.querySelectorAll('[data-menu-toggle]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const menu = btn.closest('[data-menu]');
+    const wasOpen = menu.classList.contains('open');
+    closeMenus();
+    if (!wasOpen) menu.classList.add('open');
+  });
+});
+document.addEventListener('click', closeMenus);
+
+function showPane(which) {
+  const drawer = $('drawer');
+  const clip = which === 'clip';
+  $('clipPane').style.display = clip ? '' : 'none';
+  $('setPane').style.display = clip ? 'none' : '';
+  const already = drawer.classList.contains('open') &&
+                  $(clip ? 'clipBtn' : 'setBtn').classList.contains('on');
+  drawer.classList.toggle('open', !already);
+  $('clipBtn').classList.toggle('on', !already && clip);
+  $('setBtn').classList.toggle('on', !already && !clip);
+}
+$('clipBtn').addEventListener('click', () => showPane('clip'));
+$('setBtn').addEventListener('click', () => showPane('set'));
+
+// Fullscreen, plus Keyboard Lock so Esc / Alt+Tab / Ctrl+W reach the guest
+// instead of the browser (Chromium-family, secure context only).
+$('fsBtn').addEventListener('click', async () => {
+  if (!document.fullscreenElement) {
+    try {
+      await document.documentElement.requestFullscreen();
+      if (navigator.keyboard && navigator.keyboard.lock) {
+        try { await navigator.keyboard.lock(); } catch (e) { /* unsupported */ }
+      }
+    } catch (e) { toast('Fullscreen blocked by the browser'); }
+  } else {
+    document.exitFullscreen();
+    if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock();
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  $('fsBtn').textContent = document.fullscreenElement ? 'Exit full screen' : 'Fullscreen';
+  $('fsBtn').classList.toggle('on', !!document.fullscreenElement);
+});
+
+$('shotBtn').addEventListener('click', () => {
+  const canvas = screenEl.querySelector('canvas');
+  if (!canvas) { toast('Nothing to capture yet'); return; }
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const a = document.createElement('a');
+  a.download = `{{ vm_name }}-${VMID}-${stamp}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+  toast('Screenshot saved');
+});
+
+$('reBtn').addEventListener('click', connect);
+
+window.addEventListener('beforeunload', () => { if (rfb) try { rfb.disconnect(); } catch (e) {} });
+
+clipboardStatus();
+connect();
+</script>
+</body>
+</html>

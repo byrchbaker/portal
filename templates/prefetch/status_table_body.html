@@ -1,0 +1,15 @@
+{% for team in teams %}
+<tr class="border-b border-gray-800">
+    <td class="py-2 px-4 font-bold text-gray-200">{{ team.name }}</td>
+    {% for service in services %}
+    {% set status = status_map.get((team.id, service.id), False) %}
+    <td class="py-2 px-4">
+        {% if status %}
+        <img src="{{ url_for('static', filename='up.png') }}" class="status-icon tracked-status">
+        {% else %}
+        <img src="{{ url_for('static', filename='down.png') }}" class="status-icon blink tracked-status">
+        {% endif %}
+    </td>
+    {% endfor %}
+</tr>
+{% endfor %}

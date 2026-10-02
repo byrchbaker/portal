@@ -1,0 +1,76 @@
+<!-- admin/view_submissions.html -->
+{% extends 'base.html' %}
+{% block title %}Web Submissions{% endblock %}
+{% block content %}
+<main class="max-w-7xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">📥 Web Challenge Submissions</h1>
+
+    <!-- Summary Section -->
+    <section class="mb-6 bg-gray-800 text-white p-4 rounded-xl">
+        <h2 class="text-xl font-semibold mb-2">📊 Submission Summary</h2>
+        <p>Total Submissions: {{ submissions|length }}</p>
+        <p>Graded: {{ submissions|selectattr('score_awarded', 'gt', 0)|list|length }}</p>
+        <p>Pending Grading: {{ submissions|selectattr('score_awarded', 'equalto', 0)|list|length }}</p>
+    </section>
+
+    <table class="min-w-full bg-gray-900 text-left text-sm">
+        <thead class="text-gray-400 border-b border-gray-700">
+            <tr>
+                <th class="py-2 px-4">Team</th>
+                <th class="py-2 px-4">Challenge</th>
+                <th class="py-2 px-4">Flag</th>
+                <th class="py-2 px-4">File</th>
+                <th class="py-2 px-4">Score</th>
+                <th class="py-2 px-4">Time</th>
+                <th class="py-2 px-4">Grade</th>
+            </tr>
+        </thead>
+        <tbody class="text-gray-300">
+            {% for submission in submissions %}
+            <tr class="border-b border-gray-800">
+                <td class="py-2 px-4">{{ submission.user.team_name }}</td>
+                <td class="py-2 px-4">{{ submission.challenge.title }}</td>
+                <td class="py-2 px-4">{{ submission.submitted_flag }}</td>
+                <td class="py-2 px-4">
+                    {% if submission.submitted_file %}
+                    <a href="{{ url_for('static', filename='uploads/' + submission.submitted_file) }}"
+                        class="text-blue-400 underline" target="_blank">Download</a>
+                    {% else %}-{% endif %}
+                </td>
+                <td class="py-2 px-4">{{ submission.score_awarded }}</td>
+                <td class="py-2 px-4">{{ submission.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="py-2 px-4">
+                    <form class="grade-form flex space-x-2" data-submission-id="{{ submission.id }}">
+                        <input type="number" name="score" min="0" max="{{ submission.challenge.score }}"
+                            value="{{ submission.score_awarded }}"
+                            class="w-16 bg-gray-800 text-white rounded px-2 py-1">
+                        <button type="submit"
+                            class="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">Grade</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</main>
+
+<script>
+    document.querySelectorAll('.grade-form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const submissionId = form.getAttribute('data-submission-id');
+
+            fetch(`/admin/web-submissions/grade/${submissionId}/`, {
+                method: 'POST',
+                body: formData
+            }).then(res => res.text()).then(() => {
+                form.querySelector('button').textContent = '✅';
+                setTimeout(() => {
+                    form.querySelector('button').textContent = 'Grade';
+                }, 1500);
+            });
+        });
+    });
+</script>
+{% endblock %}

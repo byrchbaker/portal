@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Manage Injects{% endblock %}
+{% block content %}
+
+
+
+<main class="max-w-6xl mx-auto p-6 space-y-6">
+    <h1 class="text-3xl font-bold">🧰 Manage Injects</h1>
+
+    <a href="{{ url_for('create_inject') }}"
+        class="inline-flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded">
+        ➕ <span>New</span>
+    </a>
+
+    <div class="overflow-x-auto rounded-xl mt-4">
+        <table class="min-w-full bg-gray-900 text-left text-sm">
+            <thead class="text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2 px-4">ID</th>
+                    <th class="py-2 px-4">Title</th>
+                    <th class="py-2 px-4">Status</th>
+                    <th class="py-2 px-4">Countdown</th>
+                    <th class="py-2 px-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-300">
+                {% for i in items %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/50">
+                    <td class="py-2 px-4">INJ-{{ '%03d' % i.id }}</td>
+                    <td class="py-2 px-4">{{ i.title }}</td>
+                    <td class="py-2 px-4">{{ i.status }}</td>
+                    <td class="py-2 px-4">{{ i.countdown_minutes }} min</td>
+                    <td class="py-2 px-4 space-x-2">
+                        <a href="{{ url_for('edit_inject', item_id=i.id) }}"
+                            class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded">Edit</a>
+
+                        <form action="{{ url_for('delete_inject', item_id=i.id) }}" method="POST" class="inline-block"
+                            onsubmit="return confirm('Delete this inject (and its related service/status)?');">
+                            <button class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded text-white">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</main>
+
+{% endblock %}

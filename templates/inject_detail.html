@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Inject - {{ inject.title }}{% endblock %}
+{% block content %}
+<main class="max-w-5xl mx-auto p-6 space-y-6" style="width: 50rem;">
+    <h1 class="text-3xl font-bold">🧨 {{ inject.title }}</h1>
+    <p class="text-gray-400">Created: {{ inject.timestamp.strftime('%B %d, %Y – %I:%M %p') }}</p>
+
+    <!-- Status -->
+    <div class="bg-gray-800 text-white p-4 rounded-xl">
+        <p class="text-lg">Status:
+            {% if service_status %}
+            <span class="font-semibold {{ 'text-green-400' if service_status.status else 'text-red-400' }}">
+                {{ 'Online' if service_status.status else 'Offline' }}
+            </span>
+            {% else %}
+            <span class="font-semibold text-gray-400 italic">Unknown</span>
+            {% endif %}
+        </p>
+    </div>
+
+
+    <!-- Countdown Timer -->
+    <div class="bg-gray-900 text-white p-4 rounded-xl">
+        <!-- Countdown Timer -->
+        <!-- Countdown Timer -->
+        <div class="bg-gray-900 text-white p-4 rounded-xl">
+            <h2 class="text-xl font-semibold mb-2">⏱ Time Left</h2>
+            <p id="countdown" class="text-2xl font-mono" data-start="{{ inject.timestamp.isoformat() }}Z"
+                data-minutes="{{ inject.countdown_minutes }}">
+                --:--:--
+            </p>
+        </div>
+
+
+    </div>
+
+    <!-- File Preview -->
+    {% if inject.file_link %}
+    <div>
+        <h2 class="text-xl font-semibold mb-2 text-white">📎 Instructions</h2>
+        <iframe src="{{ url_for('static', filename='uploads/' + inject.file_link) }}"
+            class="w-full h-[600px] border border-gray-700 rounded-xl" type="application/pdf"></iframe>
+    </div>
+    {% endif %}
+</main>
+
+<script>
+    const countdown = document.getElementById('countdown');
+    if (countdown) {
+        const start = new Date(countdown.dataset.start);  // UTC time (with 'Z')
+        const end = new Date(start.getTime() + parseInt(countdown.dataset.minutes) * 60000);
+
+        function updateCountdown() {
+            const now = new Date();
+            const diff = end - now;
+
+            if (diff <= 0) {
+                countdown.textContent = "00:00:00";
+                countdown.classList.add("text-gray-400", "italic");
+                return;
+            }
+
+            const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+            const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+            countdown.textContent = `${h}:${m}:${s}`;
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    }
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}MDTC Portal - Scoreboard{% endblock %}
+
+{% block content %}
+<main class="flex-grow p-6 max-w-7xl mx-auto space-y-10">
+    <h1 class="text-3xl font-bold mb-6">🏆 Competition Scoreboard</h1>
+
+    <div class="overflow-x-auto rounded-xl shadow ring-1 ring-gray-800/50">
+        <table class="min-w-full bg-gray-900 text-center text-sm">
+            <thead class="text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2 px-4 text-left">Team Name</th>
+                    <th class="py-2 px-4">Web</th>
+                    <th class="py-2 px-4">Uptime</th>
+                    <th class="py-2 px-4">Penalties</th>
+                    <th class="py-2 px-4">Image Score</th>
+                    <th class="py-2 px-4 font-semibold text-white">Total</th>
+                </tr>
+            </thead>
+            <tbody id="scoreboard-body" class="text-gray-300">
+                {% for team in teams %}
+                <tr class="border-b border-gray-800">
+                    <td class="py-2 px-4 text-left">
+                        {% if team.team_id %}
+                        <a class="text-blue-300 hover:underline font-semibold"
+                            href="{{ url_for('team_scoreboard', team_id=team.team_id) }}">{{ team.team_name }}</a>
+                        {% else %}
+                        {{ team.team_name }}
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4">{{ team.web }}</td>
+                    <td class="py-2 px-4">{{ team.uptime }}</td>
+                    <td class="py-2 px-4">{{ team.penalties }}</td>
+                    <td class="py-2 px-4">{{ team.image_scores }}</td>
+                    <td class="py-2 px-4 text-white font-bold">{{ team.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-xs text-gray-500">Auto-refreshes every 10s.</p>
+</main>
+
+<script>
+    async function refreshScoreboard() {
+        try {
+            const r = await fetch("{{ url_for('scoreboard_prefetch') }}", { credentials: 'same-origin' });
+            if (!r.ok) return;
+            const html = await r.text();
+            document.getElementById('scoreboard-body').innerHTML = html;
+        } catch { }
+    }
+    setInterval(refreshScoreboard, 10000);
+</script>
+{% endblock %}

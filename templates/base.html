@@ -1,0 +1,97 @@
+{# =========================== #}
+{# base.html (Regular Users) #}
+{# =========================== #}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MDTC Portal{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    {% block head_scripts %}{% endblock %}
+</head>
+
+<body class="bg-gray-950 text-white min-h-screen flex flex-col">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="fixed top-4 right-4 space-y-2 z-50">
+        {% for category, message in messages %}
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" class="px-4 py-3 rounded shadow-lg text-sm font-medium text-white transition-all duration-300 ease-in-out
+            {% if category == 'success' %} bg-green-600 
+            {% elif category == 'error' %} bg-red-600 
+            {% elif category == 'info' %} bg-blue-600 
+            {% else %} bg-gray-800 {% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <nav class="w-full bg-gray-900 p-4 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-xl font-bold text-blue-500">
+                <img src="https://www.tempsend.com/kaamyqrs/fadc06/1789749872/af-cyber-horizontal.png" alt="Portal Logo"
+                    style="width: 160px; height: 50px;">
+            </div>
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" class="md:hidden text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div class="hidden md:flex space-x-4 text-sm">
+                    {% if current_user.is_admin and current_user.is_authenticated %}
+                    <a href="/admin/" class="text-gray-400 hover:text-white">Admin</a>
+                    <a href="/announcements/" class="text-gray-400 hover:text-white">Announcements</a>
+                    <a href="/vms/" class="text-gray-400 hover:text-white">VMs</a>
+                    <a href="/status/" class="text-gray-400 hover:text-white">Status</a>
+                    <a href="/scoreboard/" class="text-gray-400 hover:text-white">Scoreboard</a>
+                    <a href="/logout/" class="text-gray-400 hover:text-red-400">
+                        Logout{% if current_user.team_name %} ({{ current_user.team_name }}){% endif %}
+                    </a>
+                    {% elif current_user.is_authenticated %}
+                    <a href="/announcements/" class="text-gray-400 hover:text-white">Announcements</a>
+                    <a href="/vms/" class="text-gray-400 hover:text-white">VMs</a>
+                    <a href="/status/" class="text-gray-400 hover:text-white">Status</a>
+                    <a href="/scoreboard/" class="text-gray-400 hover:text-white">Scoreboard</a>
+                    <a href="/logout/" class="text-gray-400 hover:text-red-400">
+                        Logout{% if current_user.team_name %} ({{ current_user.team_name }}){% endif %}
+                    </a>
+                    {% else %}
+                    <a href="/login/" class="text-gray-400 hover:text-white">Login</a>
+                    <a href="/register/" class="text-gray-400 hover:text-white">Register</a>
+                    {% endif %}
+                </div>
+
+                <div x-show="open" @click.outside="open = false"
+                    class="md:hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded shadow-md z-20">
+                    <div class="flex flex-col p-2 space-y-2">
+                        {% if current_user.is_authenticated %}
+                        <a href="/announcements/" class="text-gray-300 hover:text-white">Announcements</a>
+                        <a href="/vms/" class="text-gray-300 hover:text-white">VMs</a>
+                        <a href="/status/" class="text-gray-300 hover:text-white">Status</a>
+                        <a href="/scoreboard/" class="text-gray-300 hover:text-white">Scoreboard</a>
+                        <a href="/logout/" class="text-red-400 hover:text-white">
+                            Logout{% if current_user.team_name %} ({{ current_user.team_name }}){% endif %}
+                        </a>
+                        {% else %}
+                        <a href="/login/" class="text-gray-300 hover:text-white">Login</a>
+                        <a href="/register/" class="text-gray-300 hover:text-white">Register</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow p-6 max-w-6xl mx-auto space-y-10">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+
+</html>

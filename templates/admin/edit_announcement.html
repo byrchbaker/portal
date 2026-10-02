@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Edit Announcement{% endblock %}
+{% block content %}
+<main class="max-w-3xl mx-auto p-6 space-y-4">
+    <h1 class="text-2xl font-bold">✏️ Edit Announcement</h1>
+    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+        <input name="title" value="{{ item.title }}" class="w-full p-2 rounded bg-gray-800 text-white" required>
+        <textarea name="content" class="w-full p-2 rounded bg-gray-800 text-white" rows="6"
+            required>{{ item.content }}</textarea>
+        <label class="block text-white">Replace file (optional)</label>
+        <input type="file" name="file" class="block">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+    </form>
+</main>
+{% endblock %}

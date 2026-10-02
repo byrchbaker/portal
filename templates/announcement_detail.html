@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Announcement - {{ announcement.title }}{% endblock %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto p-6" style="width: 50rem;">
+    <h1 class="text-3xl font-bold mb-4">{{ announcement.title }}</h1>
+    <p class="text-gray-500 mb-2">🕒 {{ announcement.timestamp.strftime('%B %d, %Y – %I:%M %p') }}</p>
+    <div class="bg-gray-900 p-4 rounded-lg text-gray-300 whitespace-pre-wrap">
+        {{ announcement.content }}
+    </div>
+    {% if announcement.file_link %}
+    <div class="mt-6">
+        <h2 class="text-xl font-semibold mb-2">📎 Attached File Preview</h2>
+
+        {% if announcement.file_link %}
+        <iframe src="{{ url_for('static', filename='uploads/' + announcement.file_link) }}"
+            class="w-full h-[600px] border border-gray-700 rounded-xl" type="application/pdf">
+            Your browser does not support PDFs.
+            <a href="{{ url_for('static', filename='uploads/' + announcement.file_link) }}" target="_blank">Download
+                PDF</a>
+        </iframe>
+        {% else %}
+        <p class="text-gray-400">Preview not available. <a
+                href="{{ url_for('static', filename='uploads/' + announcement.file_link) }}"
+                class="text-blue-400 underline" target="_blank">Download file</a></p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</main>
+{% endblock %}

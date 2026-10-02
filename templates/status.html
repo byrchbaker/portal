@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Service Status{% endblock %}
+
+{% block content %}
+<main class="flex-grow p-6 max-w-7xl mx-auto space-y-10">
+    <h1 id="timestamp-title" class="text-3xl font-bold mb-6">📡 Service Status</h1>
+
+    <div class="overflow-x-auto rounded-xl">
+        <table class="min-w-full bg-gray-900 text-center text-sm">
+            <thead class="text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2 px-4">Team</th>
+                    {% for service in services %}
+                    <th class="py-2 px-4 whitespace-nowrap w-20">{{ service.name }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="status-body" class="text-gray-300">
+                {% include 'prefetch/status_table_body.html' %}
+            </tbody>
+
+        </table>
+    </div>
+</main>
+
+<style>
+    .status-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+    }
+
+    .blink {
+        animation: flashBlink 1s steps(1, start) infinite;
+    }
+
+    @keyframes flashBlink {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0;
+        }
+    }
+</style>
+
+<script>
+    function updateTimeInTitle() {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-CA');
+        const timeStr = now.toLocaleTimeString('en-GB');
+        document.getElementById("timestamp-title").textContent = `📡 Service Status: ${dateStr} ${timeStr}`;
+    }
+
+    async function fetchAndUpdateStatusTable() {
+        const tbody = document.querySelector("#status-body");
+        const oldRows = Array.from(tbody.querySelectorAll("tr"));
+
+        const oldPositions = new Map();
+        oldRows.forEach(row => {
+            oldPositions.set(row.dataset.team, row.getBoundingClientRect().top);
+        });
+
+        // Fetch new table body from server
+        const response = await fetch("/status/prefetch");
+        const newHTML = await response.text();
+
+        // Replace tbody content
+        tbody.innerHTML = newHTML;
+
+        const newRows = Array.from(tbody.querySelectorAll("tr"));
+
+        // Set data attributes on rows for tracking
+        newRows.forEach((row, i) => {
+            row.dataset.team = row.cells[0].textContent.trim();
+        });
+
+        // Animate sliding
+        newRows.forEach(row => {
+            const newTop = row.getBoundingClientRect().top;
+            const oldTop = oldPositions.get(row.dataset.team);
+            const delta = oldTop !== undefined ? oldTop - newTop : 0;
+
+            row.style.transition = "none";
+            row.style.transform = `translateY(${delta}px)`;
+
+            requestAnimationFrame(() => {
+                row.style.transition = "transform 1s ease";
+                row.style.transform = "";
+            });
+        });
+    }
+
+    window.onload = () => {
+        updateTimeInTitle();
+        fetchAndUpdateStatusTable(); // Initial load
+        setInterval(updateTimeInTitle, 1000);
+        setInterval(fetchAndUpdateStatusTable, 10000); // Refresh every 10s
+    };
+
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Team Registration{% endblock %}
+
+{% block content %}
+<div class="flex justify-center items-center h-full">
+    <div class="w-full max-w-lg p-6 bg-gray-900 rounded-2xl shadow-xl">
+        <h2 class="text-2xl font-bold text-center mb-4">🚀 Team Registration</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <ul class="mb-4 text-sm">
+            {% for category, message in messages %}
+            <li class="text-{{ 'red' if category == 'error' else 'green' }}-400">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300">Team Name</label>
+                <input type="text" name="team_name"
+                    class="mt-1 w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300">Password</label>
+                <input type="password" name="password"
+                    class="mt-1 w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300">Team Size</label>
+                <input type="number" name="team_size" id="team_size" min="1" max="10"
+                    class="mt-1 w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required onchange="renderEmailFields(this.value)">
+            </div>
+
+            <div id="emailFields" class="space-y-2"></div>
+
+            <button type="submit"
+                class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-md font-semibold transition duration-200">
+                Register Team
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function renderEmailFields(count) {
+        const container = document.getElementById("emailFields");
+        container.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const label = document.createElement("label");
+            label.className = "block text-sm font-medium text-gray-300";
+            label.textContent = `Member ${i + 1} Email`;
+
+            const input = document.createElement("input");
+            input.type = "email";
+            input.name = `email_${i}`;
+            input.required = true;
+            input.placeholder = `member${i + 1}@example.com`;
+            input.className = "w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+            container.appendChild(label);
+            container.appendChild(input);
+        }
+    }
+
+</script>
+{% endblock %}

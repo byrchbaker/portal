@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'New User' if not user else 'Edit User' }}{% endblock %}
+{% block content %}
+<main class="max-w-3xl mx-auto p-6 space-y-6">
+    <h1 class="text-2xl font-bold">
+        {{ '➕ New User' if not user else '✏️ Edit User' }}
+    </h1>
+
+    <form method="POST" class="space-y-4" action="{{ request.path }}">
+        <div>
+            <label class="block text-sm text-gray-300">Team Name</label>
+            <input name="team_name" required class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded"
+                value="{{ user.team_name if user else '' }}">
+            <p class="text-xs text-gray-400 mt-1">Must be unique. Changing this will relink to a (possibly new) Team
+                row.</p>
+        </div>
+
+        <div>
+            <label class="block text-sm text-gray-300">Username</label>
+            <input name="username" required class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded"
+                value="{{ user.username if user else '' }}">
+        </div>
+
+        <div>
+            <label class="block text-sm text-gray-300">Emails (comma-separated)</label>
+            <textarea name="email_list" rows="2"
+                class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded">{{ user.email_list if user else '' }}</textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm text-gray-300">Team Size</label>
+                <input type="number" min="1" name="team_size"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded"
+                    value="{{ user.team_size if user else 1 }}">
+            </div>
+            <label class="flex items-end gap-2">
+                <input type="checkbox" name="is_admin" {% if user and user.is_admin %}checked{% endif %}>
+                <span class="text-sm">Admin</span>
+            </label>
+        </div>
+
+        {% if not user %}
+        <div>
+            <label class="block text-sm text-gray-300">Password (required for new user)</label>
+            <input type="password" name="password" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded"
+                required>
+        </div>
+        {% endif %}
+
+        <div class="flex gap-3">
+            <button class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">
+                {{ 'Create' if not user else 'Save Changes' }}
+            </button>
+            <a href="{{ url_for('admin_users') }}" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600">Cancel</a>
+        </div>
+    </form>
+
+    {% if user %}
+    <section class="mt-8 border-t border-gray-800 pt-6">
+        <h2 class="text-xl font-semibold mb-2">🔐 Reset Password</h2>
+        <form method="POST" action="{{ url_for('admin_user_password', user_id=user.id) }}" class="flex gap-2">
+            <input type="password" name="password" placeholder="New password"
+                class="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded" required>
+            <button class="px-4 py-2 rounded bg-yellow-600 hover:bg-yellow-700 text-white">Update</button>
+        </form>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}

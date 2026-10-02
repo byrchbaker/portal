@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}MDTC Portal - VMs{% endblock %}
+
+{% block content %}
+<main class="flex-grow p-6 max-w-6xl mx-auto space-y-10">
+    <h1 class="text-3xl font-bold mb-6">🖥️ Virtual Machines</h1>
+    {% if vms %}
+    <div class="overflow-x-auto rounded-xl">
+        <table class="min-w-full bg-gray-900 text-left text-sm">
+            <thead class="text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2 px-4">VM Name</th>
+                    <th class="py-2 px-4">Status</th>
+                    <th class="py-2 px-4">Cores</th>
+                    <th class="py-2 px-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vm in vms %}
+                <tr class="border-b border-gray-800">
+                    <td class="py-2 px-4 text-gray-300">{{ vm.name }}</td>
+                    <td class="py-2 px-4">
+                        {% if vm.status == 'running' %}
+                        <span class="font-bold text-green-500">{{ vm.status|capitalize }}</span>
+                        {% elif vm.status == 'stopped' %}
+                        <span class="font-bold text-red-500">{{ vm.status|capitalize }}</span>
+                        {% else %}
+                        <span>{{ vm.status|capitalize }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4 text-gray-300">{{ vm.cores }}</td>
+                    <td class="py-2 px-4">
+                        <button onclick="window.open('/webconsole/{{ vm.vmid }}', '_blank')"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm">
+                            Open Console
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="overflow-x-auto rounded-xl">
+        <table class="min-w-full bg-gray-900 text-left text-sm">
+            <thead class="text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2 px-4">VM Name</th>
+                    <th class="py-2 px-4">Status</th>
+                    <th class="py-2 px-4">IP Address</th>
+                    <th class="py-2 px-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-b border-gray-800">
+                    <td colspan="4" class="py-2 px-4 text-center text-gray-300">
+                        No virtual machines assigned to you.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

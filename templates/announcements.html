@@ -1,0 +1,139 @@
+<!-- updated announcements.html (competitor view) -->
+{% extends 'base.html' %}
+{% block title %}MDTC Portal - Announcements{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-6">📊 Dashboard</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <section>
+        <h2 class="text-2xl font-semibold mb-4">📢 Announcements</h2>
+        <div class="overflow-x-auto rounded-xl">
+            <table class="min-w-full bg-gray-900 text-left text-sm">
+                <thead class="text-gray-400 border-b border-gray-700">
+                    <tr>
+                        <th class="py-2 px-4">Time</th>
+                        <th class="py-2 px-4">Message</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-300">
+                    {% for post in posts %}
+                    <tr class="border-b border-gray-800 cursor-pointer hover:bg-gray-800"
+                        onclick="location.href='{{ url_for('announcement_detail', announcement_id=post.id) }}'">
+                        <td class="py-2 px-4">{{ post.timestamp.strftime('%I:%M %p') }}</td>
+                        <td class="py-2 px-4">{{ post.title }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-2xl font-semibold mb-4">🧨 Injects</h2>
+        <div class="overflow-x-auto rounded-xl">
+            <table class="min-w-full bg-gray-900 text-left text-sm">
+                <thead class="text-gray-400 border-b border-gray-700">
+                    <tr>
+                        <th class="py-2 px-4">Inject ID</th>
+                        <th class="py-2 px-4">Title</th>
+                        <th class="py-2 px-4">Status</th>
+                        <th class="py-2 px-4">Time Left</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-300">
+                    {% for inject in injects %}
+                    {% set now = datetime.utcnow() %}
+                    {% set start_time = inject.timestamp %}
+                    {% set end_time = inject.timestamp + timedelta(minutes=inject.countdown_minutes) %}
+                    <tr class="border-b border-gray-800 cursor-pointer hover:bg-gray-800 {% if now > end_time %}opacity-50{% endif %}"
+                        onclick="location.href='{{ url_for('view_inject', inject_id=inject.id) }}'">
+
+                        <td class="py-2 px-4">INJ-{{ '%03d' % inject.id }}</td>
+                        <td class="py-2 px-4">{{ inject.title }}</td>
+
+                        <td class="py-2 px-4">
+                            {% if now < start_time %} <span class="text-blue-400">Not Started Yet</span>
+                                {% elif now > end_time %}
+                                <span class="text-gray-400">Expired</span>
+                                {% else %}
+                                <span class="text-green-400">Active</span>
+                                {% endif %}
+                        </td>
+
+                        <td class="py-2 px-4">
+                            {% if now < end_time %} <span class="countdown"
+                                data-start="{{ inject.timestamp.isoformat() }}Z"
+                                data-minutes="{{ inject.countdown_minutes }}">
+                                --:--:--</span>
+
+
+                                {% else %}
+                                <span class="text-gray-400 italic">Expired</span>
+                                {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </section>
+</div>
+
+<section>
+    <h2 class="text-2xl font-semibold mb-4">💻 Web Challenges</h2>
+    <div class="overflow-x-auto rounded-xl">
+        <table class="min-w-full bg-gray-900 text-left text-sm">
+            <thead class="text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2 px-4">Time</th>
+                    <th class="py-2 px-4">Title</th>
+                    <th class="py-2 px-4">Status</th>
+                    <th class="py-2 px-4">Score</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-300">
+                {% for challenge in web_challenges %}
+                <tr class="border-b border-gray-800 cursor-pointer hover:bg-gray-800"
+                    onclick="location.href='{{ url_for('view_web_challenge', challenge_id=challenge.id) }}'">
+                    <td class="py-2 px-4">{{ challenge.timestamp.strftime('%I:%M %p') }}</td>
+                    <td class="py-2 px-4">{{ challenge.title }}</td>
+                    <td class="py-2 px-4">{{ challenge.status or '--' }}</td>
+                    <td class="py-2 px-4">{{ current_user.web_submissions|selectattr('challenge_id', 'equalto',
+                        challenge.id)|map(attribute='score_awarded')|first or 0 }}/{{ challenge.score }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+</main>
+<script>
+    document.querySelectorAll('.countdown').forEach(span => {
+        const startUTC = new Date(span.dataset.start); // Already ends with 'Z'
+        const end = new Date(startUTC.getTime() + parseInt(span.dataset.minutes) * 60000);
+
+        function update() {
+            const now = new Date();
+            const diff = end - now;
+
+            if (diff <= 0) {
+                span.textContent = "00:00:00";
+                span.classList.add("text-gray-400", "italic");
+                return;
+            }
+
+            const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+            const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+
+            span.textContent = `${h}:${m}:${s}`;
+        }
+
+        update();
+        setInterval(update, 1000);
+    });
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,30 @@
+<!-- admin/dashboard.html -->
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<main class="max-w-5xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">🛠 Admin Dashboard</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="{{ url_for('view_web_submissions') }}"
+            class="bg-purple-600 text-white p-4 rounded-xl hover:bg-purple-700">
+            📥 View Web Submissions
+        </a>
+        <!-- admin/dashboard.html: add a "Manage" row or extend the grid -->
+        <a href="{{ url_for('manage_announcements') }}" class="bg-blue-800 text-white p-4 rounded-xl hover:bg-blue-900">
+            📋 Manage Announcements
+        </a>
+        <a href="{{ url_for('manage_injects') }}" class="bg-yellow-800 text-white p-4 rounded-xl hover:bg-yellow-900">
+            🧰 Manage Injects
+        </a>
+        <a href="{{ url_for('manage_web_challenges') }}"
+            class="bg-green-800 text-white p-4 rounded-xl hover:bg-green-900">
+            🗂 Manage Web Challenges
+        </a>
+        <a href="{{ url_for('admin_users') }}" class="bg-indigo-600 text-white p-4 rounded-xl hover:bg-indigo-700">
+            👥 Manage Users
+        </a>
+
+
+    </div>
+</main>
+{% endblock %}

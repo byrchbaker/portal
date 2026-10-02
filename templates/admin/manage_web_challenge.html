@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Edit Web Challenge{% endblock %}
+{% block content %}
+<main class="max-w-3xl mx-auto p-6 space-y-4">
+    <h1 class="text-2xl font-bold">✏️ Edit Web Challenge</h1>
+    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+        <input name="title" value="{{ item.title }}" class="w-full p-2 rounded bg-gray-800 text-white" required>
+        <label class="block text-white">Score</label>
+        <input type="number" name="score" value="{{ item.score }}" class="w-full p-2 rounded bg-gray-800 text-white">
+        <label class="block text-white">Status (optional)</label>
+        <input name="status" value="{{ item.status or '' }}" class="w-full p-2 rounded bg-gray-800 text-white">
+        <label class="block text-white">Replace file (optional)</label>
+        <input type="file" name="file" class="block">
+        <button class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
+    </form>
+</main>
+{% endblock %}
